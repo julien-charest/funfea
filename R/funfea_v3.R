@@ -9,27 +9,38 @@
 # 25.11.2024                         #
 ######################################
 
+#########
+# To Do #
+#########
+
+# Rename functions
+# Update roxygen comments
+# Handle errors
+
 #############
 # Utilities #
 #############
 
 #################################
-# Loads a custom gtf annotation #
+# Loads a GTF annotation #
 
-#' Load Custom GTF Annotation
+#' Load GTF Annotation
 #'
 #' @description
-#' This function loads a custom GTF annotation into a dataframe.
+#' This function loads a GTF annotation into a dataframe.
 #'
 #' @param path Path to GTF annotation
 #' @return A dataframe with GTF annotation information
 #' @examples
-#' gtf_df <- load_custom_gtf_annotation(gtf_annotation_path)
+#' gtf_df <- load_gtf_annotation(gtf_annotation_path)
+#' @export
 
-load_custom_gtf_annotation <- function(path){
+load_gtf_annotation <- function(path){
 
   gtf_data <- read.delim(path, header = FALSE, sep = "\t")
   colnames(gtf_data) <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute")
+  gtf_data <- gtf_data[!grepl("^#", gtf_data$seqname),]
+  rownames(gtf_data) <- NULL
 
   return(gtf_data)
 }
@@ -39,20 +50,22 @@ load_custom_gtf_annotation <- function(path){
 
 #' Create Transcript ID to Protein ID Dataframe
 #'
-#'@description
-#'This function parses a GTF annotation dataframe to generate a transcript ID to protein ID conversion dataframe.
+#' @description
+#' This function parses a GTF annotation dataframe to generate a transcript ID to protein ID conversion dataframe.
 #'
 #' @param gtf_df A dataframe with GTF annotation information
 #'
-#' @return A dataframe with transcript ID and protein ID information
+#' @return A dataframe with gene ID, transcript ID and protein ID information
 #' @examples
 #' transcript2protein_id_df <- create_transcript2protein_id_df(gtf_df)
+#' @export
 
 create_transcript2protein_id_df <- function(gtf_df){
 
   gtf_attributes <- gtf_df[gtf_df$feature == "CDS",]
 
   gene_ids <- c()
+  gene_names <- c()
   transcript_ids <- c()
   protein_ids <- c()
 
@@ -62,28 +75,34 @@ create_transcript2protein_id_df <- function(gtf_df){
     attribute_i <- trimws(unlist(strsplit(attribute_i, ";")))
 
     gene_id <- NA
+    gene_name <- NA
     transcript_id <- NA
     protein_id <- NA
+    genefound <- FALSE
 
     for (j in attribute_i){
-      if (grepl("gene_id ", j)){
+      if (grepl("^gene_id ", j)){
         gene_id <- substr(j,9,nchar(j))
       }
-      if (grepl("transcript_id ", j)){
+      if (grepl('^gene ', j) && !genefound){
+        gene_name <- substr(j,6,nchar(j))
+        genefound <- TRUE
+      }
+      if (grepl("^transcript_id ", j)){
         transcript_id <- substr(j,15,nchar(j))
       }
-      if (grepl("protein_id ", j)){
+      if (grepl("^protein_id ", j)){
         protein_id <- substr(j,12,nchar(j))
       }
     }
 
     gene_ids<- append(gene_ids, gene_id)
+    gene_names <- append(gene_names, gene_name)
     transcript_ids <- append(transcript_ids, transcript_id)
     protein_ids <- append(protein_ids, protein_id)
-
   }
 
-  transcript2protein_id_df <- data.frame(gene_ids, transcript_ids, protein_ids)
+  transcript2protein_id_df <- data.frame(gene_ids, gene_names, transcript_ids, protein_ids)
   transcript2protein_id_df <- unique(transcript2protein_id_df)
   row.names(transcript2protein_id_df) <- NULL
 
@@ -99,25 +118,76 @@ create_transcript2protein_id_df <- function(gtf_df){
 #' Converts a list of Transcript IDs to Protein Ids.
 #'
 #' @param transcript_ids A vector of transcript IDs
-#' @param transcript2protein_id_df A dataframe with transcript ID and protein ID information
+#' @param transcript2protein_id_df A dataframe with gene ID, transcript ID and protein ID information
 #'
 #' @return A vector of protein IDs
 #'
 #' @examples
 #' protein_ids <- transcript2protein_id(transcript_ids, transcript2protein_id_df)
+#' @export
 
 transcript2protein_id <- function(transcript_ids, transcript2protein_id_df){
 
   protein_ids <- c()
 
   for (i in transcript_ids){
-
     protein_ids <- append(protein_ids, transcript2protein_id_df[transcript2protein_id_df$transcript_ids == i,]$protein_ids)
-
   }
 
   return(protein_ids)
+}
 
+
+##############################################
+# Converts a list of gene ids to protein ids #
+
+#' Gene ID to Protein ID
+#'
+#' @description
+#' Converts a list of Gene IDs and/or Gene Names to Protein Ids.
+#'
+#' @param transcript_ids A vector of gene IDs
+#' @param transcript2protein_id_df A dataframe with gene ID, transcript ID and protein ID information
+#'
+#' @return A vector of protein IDs
+#'
+#' @examples
+#' protein_ids <- gene2protein_id(genes, transcript2protein_id_df)
+#' @export
+
+gene2protein_id <- function(genes, transcript2protein_id_df) {
+
+  protein_ids <- c()
+
+  for (i in toupper(genes)) {
+
+    # Check in gene_ids
+    if (i %in% toupper(transcript2protein_id_df$gene_ids)) {
+      cleaned_df <- transcript2protein_id_df[!is.na(transcript2protein_id_df$gene_ids), ]
+      match <- cleaned_df[toupper(cleaned_df$gene_ids) == i, ]$protein_ids
+
+      # Take the first match or handle as required
+      protein_ids <- append(protein_ids, match[1])
+      next
+    }
+
+    # Check in gene_names
+    else if (i %in% toupper(transcript2protein_id_df$gene_names)) {
+      cleaned_df <- transcript2protein_id_df[!is.na(transcript2protein_id_df$gene_names), ]
+      match <- cleaned_df[toupper(cleaned_df$gene_names) == i, ]$protein_ids
+
+      # Take the first match or handle as required
+      protein_ids <- append(protein_ids, match[1])
+      next
+    }
+
+    # If no match, append NA
+    else {
+      protein_ids <- append(protein_ids, NA)
+    }
+  }
+
+  return(protein_ids)
 }
 
 
@@ -126,21 +196,22 @@ transcript2protein_id <- function(transcript_ids, transcript2protein_id_df){
 ###############################
 
 ########################################
-# Loads custom COG/KOG annotation file #
+# Loads COG/KOG annotation file #
 
-#' Load Custom COG/KOG Annotation
+#' Load COG/KOG Annotation
 #'
 #' @description
-#' This function loads a custom COG/KOG (Clusters of Orthologous Genes) annotation into a dataframe.
+#' This function loads a COG/KOG (Clusters of Orthologous Genes) annotation into a dataframe.
 #'
 #' @param path Path to COG/KOG annotation
 #'
 #' @return A dataframe with COG/KOG annotation information
 #'
 #' @examples
-#' kog_annotation_df <- load_custom_kog_annotation(kog_annotation_path)
+#' kog_annotation_df <- load_kog_annotation(kog_annotation_path)
+#' @export
 
-load_custom_kog_annotation <- function(path){
+load_kog_annotation <- function(path){
 
   annotation_data <- read.delim(path, header = TRUE, sep = "\t")
 
@@ -167,6 +238,7 @@ load_custom_kog_annotation <- function(path){
 #'
 #' @examples
 #' kog_model_df <- create_kog_model(kog_annotation_df)
+#' @export
 
 create_kog_model <- function(kog_annotation){
 
@@ -212,9 +284,9 @@ create_kog_model <- function(kog_annotation){
   kog_model <- data.frame(kogClass = groups, kogModel = sum_annotated_class)
   kog_model[kog_model$kogClass == "ANNOTATED",]$kogModel <- length(unique(kog_annotation$proteinId))
   kog_model[kog_model$kogClass == "CELLULAR PROCESSES AND SIGNALING",]$kogModel <- sum(kog_model$kogModel[2:10])
-  kog_model[kog_model$kogClass =="INFORMATION STORAGE AND PROCESSING",]$kogModel <- sum(kog_model$kogModel[12:16])
-  kog_model[kog_model$kogClass =="METABOLISM",]$kogModel <- sum(kog_model$kogModel[18:26])
-  kog_model[kog_model$kogClass =="POORLY CHARACTERIZED",]$kogModel <- sum(kog_model$kogModel[28:29])
+  kog_model[kog_model$kogClass == "INFORMATION STORAGE AND PROCESSING",]$kogModel <- sum(kog_model$kogModel[12:16])
+  kog_model[kog_model$kogClass == "METABOLISM",]$kogModel <- sum(kog_model$kogModel[18:26])
+  kog_model[kog_model$kogClass == "POORLY CHARACTERIZED",]$kogModel <- sum(kog_model$kogModel[28:29])
 
   return(kog_model)
 }
@@ -240,6 +312,7 @@ create_kog_model <- function(kog_annotation){
 #' kog_enrichment_df <- kog_enrichment(kog_model_df, kog_annotation_df, protein_ids, test = "fisher", p.adjust.method = "BH")
 #' kog_enrichment_df <- kog_enrichment(kog_model_df, kog_annotation_df, protein_ids, test = "chisq", p.adjust.method = "bonferroni")
 #' kog_enrichment_df <- kog_enrichment(kog_model_df, kog_annotation_df, protein_ids, test = "chisq", p.adjust.method = "none")
+#' @export
 
 kog_enrichment <- function(kog_model, kog_annotation_df, protein_ids, test= "fisher", p.adjust.method= "BH"){
 
@@ -319,6 +392,7 @@ kog_enrichment <- function(kog_model, kog_annotation_df, protein_ids, test= "fis
 #' generate_kog_plot(kog_enrichment_df)
 #' generate_kog_plot(kog_enrichment_df, plot_title = "KOG Enrichment")
 #' generate_kog_plot(kog_enrichment_df, significant = "blue")
+#' @export
 
 generate_kog_plot <- function(enrichment_df, significant = "#0B775E", plot_title = NA){
 
@@ -373,21 +447,22 @@ generate_kog_plot <- function(enrichment_df, significant = "#0B775E", plot_title
 ##########################
 
 ###################################
-# Loads custom GO annotation file #
+# Loads GO annotation file #
 
-#' Load Custom GO Annotation
+#' Load GO Annotation
 #'
 #' @description
-#' This function loads a custom GO (Gene Ontology) annotation into a dataframe.
+#' This function loads a GO (Gene Ontology) annotation into a dataframe.
 #'
 #' @param path Path to GO annotation
 #'
 #' @return A dataframe with GO annotation information
 #'
 #' @examples
-#' go_annotation_df <- load_custom_go_annotation(go_annotation_path)
+#' go_annotation_df <- load_go_annotation(go_annotation_path)
+#' @export
 
-load_custom_go_annotation <- function(path){
+load_go_annotation <- function(path){
 
   annotation_data <- read.delim(path, header = TRUE, sep = "\t")
 
@@ -414,6 +489,7 @@ load_custom_go_annotation <- function(path){
 #'
 #' @examples
 #' go_model_df <- create_go_model(go_annotation_df)
+#' @export
 
 create_go_model <- function(go_annotation){
 
@@ -488,6 +564,7 @@ create_go_model <- function(go_annotation){
 #' go_enrichment_df <- go_enrichment(go_model_df, go_annotation_df, protein_ids, test = "fisher", p.adjust.method = "BH")
 #' go_enrichment_df <- go_enrichment(go_model_df, go_annotation_df, protein_ids, test = "chisq", p.adjust.method = "bonferroni")
 #' go_enrichment_df <- go_enrichment(go_model_df, go_annotation_df, protein_ids, test = "chisq", p.adjust.method = "none")
+#' @export
 
 go_enrichment <- function(go_model, go_annotation_df, protein_ids, test= "fisher", p.adjust.method= "BH"){
 
@@ -583,6 +660,7 @@ go_enrichment <- function(go_model, go_annotation_df, protein_ids, test= "fisher
 #' generate_go_plot(go_enrichment_df, gotermType = "molecular_function")
 #' generate_go_plot(go_enrichment_df, gotermType = "cellular_component")
 #' generate_go_plot(go_enrichment_df, gotermType = "biological_process", n = 10, significant = "blue")
+#' @export
 
 generate_go_plot <- function(enrichment_df, gotermType = "biological_process", n = 10, significant = "#E58601", plot_title = NA){
 
@@ -645,12 +723,12 @@ generate_go_plot <- function(enrichment_df, gotermType = "biological_process", n
 # EC enrichment analysis #
 ##########################
 
-# Loads custom EC annotation file
+# Loads EC annotation file
 
-#' Load Custom EC Annotation
+#' Load EC Annotation
 #'
 #' @description
-#' This function loads a custom EC (Enzyme Commission) annotation into a dataframe.
+#' This function loads a EC (Enzyme Commission) annotation into a dataframe.
 #'
 #'
 #' @param path 	Path to EC annotation
@@ -658,9 +736,10 @@ generate_go_plot <- function(enrichment_df, gotermType = "biological_process", n
 #' @return A dataframe with EC annotation information
 #'
 #' @examples
-#' ec_annotation_df <- load_custom_ec_annotation(ec_annotation_path)
+#' ec_annotation_df <- load_ec_annotation(ec_annotation_path)
+#' @export
 
-load_custom_ec_annotation <- function(path){
+load_ec_annotation <- function(path){
 
   annotation_data <- read.delim(path, header = TRUE, sep = "\t")
 
@@ -720,6 +799,7 @@ load_custom_ec_annotation <- function(path){
 #'
 #' @examples
 #' ec_model_df <- create_ec_model(ec_annotation_df)
+#' @export
 
 create_ec_model <- function(ec_annotation){
 
@@ -809,8 +889,9 @@ create_ec_model <- function(ec_annotation){
 #' ec_enrichment_df <- ec_enrichment(ec_model_df, ec_annotation_df, protein_ids, test= "fisher", p.adjust.method= "BH")
 #' ec_enrichment_df <- ec_enrichment(ec_model_df, ec_annotation_df, protein_ids, test= "chisq", p.adjust.method= "bonferonni")
 #' ec_enrichment_df <- ec_enrichment(ec_model_df, ec_annotation_df, protein_ids, test= "chisq", p.adjust.method= "none")
+#' @export
 
-ec_enrichment <- function(ec_model,ec_annotation_df, protein_ids, test= "fisher", p.adjust.method= "BH"){
+ec_enrichment <- function(ec_model, ec_annotation_df, protein_ids, test= "fisher", p.adjust.method= "BH"){
 
   ec_count_df <- ec_model
   ec_groups <- c("metabolic", "regulatory")
@@ -934,6 +1015,7 @@ ec_enrichment <- function(ec_model,ec_annotation_df, protein_ids, test= "fisher"
 #' generate_ec_plot(ec_enrichment_df, pathwayType = "summary", plot_title = "EC Enrichment: Summary")
 #' generate_ec_plot(ec_enrichment_df, pathwayType = "metabolic", significant = "blue")
 #' generate_ec_plot(ec_enrichment_df, pathwayType = "regulatory", n = 15)
+#' @export
 
 generate_ec_plot <- function(enrichment_df, pathwayType = "summary", n = 10, significant = "#9986A5", plot_title = NA){
 
@@ -997,6 +1079,201 @@ generate_ec_plot <- function(enrichment_df, pathwayType = "summary", n = 10, sig
   }
 
   return(p)
+}
+
+
+######################################
+# Loading a eggNOG-mapper Annotation #
+######################################
+
+#' Load eggNOG-mapper Annotation
+#'
+#' @description
+#' This functions loads a eggNOG-mapper annotation into a dataframe.
+#'
+#' @param path Path to eggNOG-mapper annotation file
+#'
+#' @return A dataframe with eggNOG-mapper annotation information
+#' @export
+#'
+#' @examples
+#' eggnog_annotation_df <- load_eggnog_annotation(eggnog_annotation_path)
+
+load_eggnog_annotation <- function(path){
+
+  annotation_data <- read.delim(path, header = FALSE, sep = "\t")
+
+  if (dim(annotation_data)[2] != 21) {
+    stop("Write Error Here")
+  }
+
+  colnames(annotation_data) <- c("query",	"seed_ortholog",	"evalue",	"score",	"eggNOG_OGs",	"max_annot_lvl",	"COG_category",
+                                 "Description",	"Preferred_name",	"GOs",	"EC",	"KEGG_ko",	"KEGG_Pathway",	"KEGG_Module",	"KEGG_Reaction",
+                                 "KEGG_rclass",	"BRITE",	"KEGG_TC",	"CAZy",	"BiGG_Reaction",	"PFAMs")
+  annotation_data <- annotation_data[!grepl("^#", annotation_data$query),]
+  rownames(annotation_data) <- NULL
+
+  return(annotation_data)
+}
+
+
+######################################################
+# Create COG/KOG Model from eggNOG-mapper Annotation #
+######################################################
+
+#' Create COG/KOG Model from eggNOG-mapper Annotation
+#'
+#' @description
+#' This function generates a background frequency model for COG/KOG categories enrichment analysis based on eggNOG-mapper annotation.
+#'
+#' @param eggnog_annotation A dataframe with eggNOG-mapper annotation information
+#'
+#' @return A dataframe with COG/KOG categories background frequencies
+#' @export
+#'
+#' @examples
+#' kog_model_df <- create_kog_model_eggnog(eggnog_annotation_df)
+
+create_kog_model_eggnog <- function(eggnog_annotation){
+
+  cog_classes_df <- cog_classes_df
+
+  groups <- c("CELLULAR PROCESSES AND SIGNALING",
+              "Cell wall/membrane/envelope biogenesis",
+              "Cell motility",
+              "Posttranslational modification, protein turnover, chaperones",
+              "Signal transduction mechanisms",
+              "Intracellular trafficking, secretion, and vesicular transport",
+              "Defense mechanisms",
+              "Extracellular structures",
+              "Nuclear structure",
+              "Cytoskeleton",
+              "INFORMATION STORAGE AND PROCESSING",
+              "RNA processing and modification",
+              "Chromatin structure and dynamics",
+              "Translation, ribosomal structure and biogenesis",
+              "Transcription",
+              "Replication, recombination and repair",
+              "METABOLISM",
+              "Energy production and conversion",
+              "Cell cycle control, cell division, chromosome partitioning",
+              "Amino acid transport and metabolism",
+              "Nucleotide transport and metabolism",
+              "Carbohydrate transport and metabolism",
+              "Coenzyme transport and metabolism",
+              "Lipid transport and metabolism",
+              "Inorganic ion transport and metabolism",
+              "Secondary metabolites biosynthesis, transport and catabolism",
+              "POORLY CHARACTERIZED",
+              "General function prediction only",
+              "Function unknown",
+              "UNANNOTATED",
+              "ANNOTATED")
+
+  kog_model <- data.frame(kogClass = groups, kogModel = 0)
+
+  classes_model <- paste(eggnog_annotation$COG_category, collapse = '')
+  n_proteins <- length(eggnog_annotation$query)
+  unannotated <- length(gregexpr("-", classes_model)[[1]][gregexpr("-", classes_model)[[1]] > 0])
+
+  for (i in cog_classes_df$code){
+    kog_model[kog_model$kogClass == cog_classes_df[cog_classes_df$code == i,]$class,]$kogModel <- length(gregexpr(i, classes_model)[[1]][gregexpr(i, classes_model)[[1]] > 0])
+  }
+
+  kog_model[kog_model$kogClass == "UNANNOTATED",]$kogModel <- unannotated
+  kog_model[kog_model$kogClass == "ANNOTATED",]$kogModel <- n_proteins - unannotated
+  kog_model[kog_model$kogClass == "CELLULAR PROCESSES AND SIGNALING",]$kogModel <- sum(kog_model$kogModel[2:10])
+  kog_model[kog_model$kogClass =="INFORMATION STORAGE AND PROCESSING",]$kogModel <- sum(kog_model$kogModel[12:16])
+  kog_model[kog_model$kogClass =="METABOLISM",]$kogModel <- sum(kog_model$kogModel[18:26])
+  kog_model[kog_model$kogClass =="POORLY CHARACTERIZED",]$kogModel <- sum(kog_model$kogModel[28:29])
+
+  return(kog_model)
+}
+
+
+###################################
+# Create COG/KOG enrichment table #
+
+#' Create COG/KOG Enrichment Dataframe from eggNOG-mapper annotation
+#'
+#' @param kog_model A dataframe with COG/KOG categories background frequencies
+#' @param eggnog_annotation_df A dataframe with eggNOG-mapper annotation information
+#' @param protein_ids A vector of protein IDs
+#' @param test A statistical method for testing the null of independence of rows and columns in a contingency table (default = "fisher")
+#' @param p.adjust.method A statistical method to adjust p-values for multiple comparisons (default = "BH")
+#'
+#' @return A dataframe with COG/KOG categories enrichment statistics
+#' @export
+#'
+#' @examples
+#' kog_enrichment_df <- kog_enrichment_eggnog(kog_model_df, eggnog_annotation_df, protein_ids)
+#' kog_enrichment_df <- kog_enrichment_eggnog(kog_model_df, eggnog_annotation_df, protein_ids, test = "fisher", p.adjust.method = "BH")
+#' kog_enrichment_df <- kog_enrichment_eggnog(kog_model_df, eggnog_annotation_df, protein_ids, test = "chisq", p.adjust.method = "bonferroni")
+#' kog_enrichment_df <- kog_enrichment_eggnog(kog_model_df, eggnog_annotation_df, protein_ids, test = "chisq", p.adjust.method = "none")
+
+kog_enrichment_eggnog <- function(kog_model, eggnog_annotation_df, protein_ids, test= "fisher", p.adjust.method= "BH"){
+
+  cog_classes_df <- cog_classes_df
+
+  kog_count_df <- kog_model
+  kog_count_df$proteinCount <- 0
+
+  protein_ids <- unique(protein_ids)
+  protein_classes <- eggnog_annotation_df[eggnog_annotation_df$query %in% protein_ids,]$COG_category
+
+  n_proteins <- length(protein_ids)
+  n_annotated <- length(protein_classes)
+
+
+  for (i in names(table(factor(protein_classes)))){
+
+    if (i == "-"){
+      kog_count_df[kog_count_df$kogClass == "UNANNOTATED",]$proteinCount <- table(factor(protein_classes))[[i]] + (n_proteins - n_annotated)
+    }
+
+    else {
+    kog_count_df[kog_count_df$kogClass == cog_classes_df[cog_classes_df$code == i,]$class,]$proteinCount <- table(factor(protein_classes))[[i]]
+    }
+  }
+
+  kog_count_df[kog_count_df$kogClass == "CELLULAR PROCESSES AND SIGNALING",]$proteinCount <- sum(kog_count_df$proteinCount[2:10])
+  kog_count_df[kog_count_df$kogClass =="INFORMATION STORAGE AND PROCESSING",]$proteinCount <- sum(kog_count_df$proteinCount[12:16])
+  kog_count_df[kog_count_df$kogClass =="METABOLISM",]$proteinCount <- sum(kog_count_df$proteinCount[18:26])
+  kog_count_df[kog_count_df$kogClass =="POORLY CHARACTERIZED",]$proteinCount <- sum(kog_count_df$proteinCount[28:29])
+  kog_count_df[kog_count_df$kogClass =="ANNOTATED",]$proteinCount <- n_proteins - kog_count_df[kog_count_df$kogClass =="UNANNOTATED",]$proteinCount
+
+  enrichment_df <- kog_count_df
+  enrichment_df$enrichment <- (enrichment_df$proteinCount/enrichment_df[enrichment_df$kogClass == "ANNOTATED",]$proteinCount)/(enrichment_df$kogModel/enrichment_df[enrichment_df$kogClass == "ANNOTATED",]$kogModel)
+
+  enrichment_df$enrichment[is.infinite(enrichment_df$enrichment)] <- NaN
+  enrichment_df$enrichment[enrichment_df$kogClass == "UNANNOTATED"] <- NaN
+  enrichment_df$enrichment[enrichment_df$kogClass == "ANNOTATED"] <- NaN
+
+  stat_results <- c()
+
+  for (i in enrichment_df$kogClass){
+    if (is.nan(enrichment_df[enrichment_df$kogClass == i,]$enrichment)){
+      stat_results <- append(stat_results, NaN)
+      next
+    }
+
+    contingency_table <- matrix(c(enrichment_df[enrichment_df$kogClass == i,]$proteinCount,
+                                  enrichment_df[enrichment_df$kogClass == "ANNOTATED",]$proteinCount - enrichment_df[enrichment_df$kogClass == i,]$proteinCount,
+                                  enrichment_df[enrichment_df$kogClass == i,]$kogModel,
+                                  enrichment_df[enrichment_df$kogClass == "ANNOTATED",]$kogModel - enrichment_df[enrichment_df$kogClass == i,]$kogModel),2,2)
+    if (test == "fisher"){
+      stat_results <- append(stat_results, fisher.test(contingency_table, alternative='greater')$p.value)
+    }
+
+    else if (test == "chisq"){
+      stat_results <- append(stat_results, chisq.test(contingency_table)$p.value)
+    }
+  }
+
+  enrichment_df$p.value <- stat_results
+  enrichment_df$adj.p.value <- p.adjust(enrichment_df$p.value, method = p.adjust.method)
+
+  return(enrichment_df)
 }
 
 ################################################################################

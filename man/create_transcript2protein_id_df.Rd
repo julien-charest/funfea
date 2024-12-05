@@ -10,7 +10,7 @@ create_transcript2protein_id_df(gtf_df)
 \item{gtf_df}{A dataframe with GTF annotation information}
 }
 \value{
-A dataframe with transcript ID and protein ID information
+A dataframe with gene ID, transcript ID and protein ID information
 }
 \description{
 This function parses a GTF annotation dataframe to generate a transcript ID to protein ID conversion dataframe.

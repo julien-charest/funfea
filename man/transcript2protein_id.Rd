@@ -9,7 +9,7 @@ transcript2protein_id(transcript_ids, transcript2protein_id_df)
 \arguments{
 \item{transcript_ids}{A vector of transcript IDs}
 
-\item{transcript2protein_id_df}{A dataframe with transcript ID and protein ID information}
+\item{transcript2protein_id_df}{A dataframe with gene ID, transcript ID and protein ID information}
 }
 \value{
 A vector of protein IDs
