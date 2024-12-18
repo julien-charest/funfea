@@ -371,6 +371,38 @@ kog_enrichment <- function(kog_model, kog_annotation_df, protein_ids, test= "fis
   enrichment_df$p.value <- stat_results
   enrichment_df$adj.p.value <- p.adjust(enrichment_df$p.value, method = p.adjust.method)
 
+  enrichment_df$proteinIds <- NA
+  unannotated_protein <- c()
+  annotated_protein <- c()
+
+  for (i in protein_ids){
+    if (!(i %in% kog_annotation_df$proteinId)){
+      unannotated_protein <- append(unannotated_protein, i)
+    }
+
+    else {
+      annotated_protein <- append(annotated_protein, i)
+    }
+  }
+
+  enrichment_df[enrichment_df$kogClass == "ANNOTATED",]$proteinIds <- paste(annotated_protein, collapse = ", ")
+  enrichment_df[enrichment_df$kogClass == "UNANNOTATED",]$proteinIds <- paste(unannotated_protein, collapse = ", ")
+
+  for (i in cog_classes_df$class){
+
+    i_proteins <- c()
+
+    for (j in kog_annotation_df[kog_annotation_df$proteinId %in% protein_ids,]$proteinId){
+      if (i %in% trimws(kog_annotation_df[kog_annotation_df$proteinId == j,]$kogClass)){
+        i_proteins <- append(i_proteins, j)
+      }
+    }
+
+    if (length(i_proteins) > 0){
+      enrichment_df[enrichment_df$kogClass ==  i,]$proteinIds <- paste(unique(i_proteins), collapse = ", ")
+    }
+  }
+
   return(enrichment_df)
 }
 
@@ -397,6 +429,11 @@ kog_enrichment <- function(kog_model, kog_annotation_df, protein_ids, test= "fis
 generate_kog_plot <- function(enrichment_df, significant = "#0B775E", plot_title = NA){
 
   fig_tab <- enrichment_df[1:29,]
+
+  fig_tab$enrichment[is.nan(fig_tab$enrichment)] <- 0
+  fig_tab$p.value[is.nan(fig_tab$p.value)] <- 1
+  fig_tab$adj.p.value[is.nan(fig_tab$adj.p.value)] <- 1
+
   fig_tab$color <- "grey"
 
   for (i in 1:nrow(fig_tab)){
@@ -485,10 +522,13 @@ load_go_annotation <- function(path){
 #'
 #' @param go_annotation A dataframe with GO annotation information
 #'
-#' @return A list of dataframes with GO terms background frequencies per GO term type
+#' @return A list of dataframes with GO terms background frequencies by gotermType (biological_processes, cellular_component, molecular_function)
 #'
 #' @examples
 #' go_model_df <- create_go_model(go_annotation_df)
+#' go_model_biological_processes_df <- go_model_df$biological_processes
+#' go_model_cellular_component_df <- go_model_df$cellular_component
+#' go_model_molecular_function_df <- go_model_df$molecular_function
 #' @export
 
 create_go_model <- function(go_annotation){
@@ -1224,22 +1264,19 @@ kog_enrichment_eggnog <- function(kog_model, eggnog_annotation_df, protein_ids, 
   n_proteins <- length(protein_ids)
   n_annotated <- length(protein_classes)
 
+  protein_classes <- paste(protein_classes, collapse = '')
 
-  for (i in names(table(factor(protein_classes)))){
+  n_unannotated <- length(gregexpr("-", protein_classes)[[1]][gregexpr("-", protein_classes)[[1]] > 0])
 
-    if (i == "-"){
-      kog_count_df[kog_count_df$kogClass == "UNANNOTATED",]$proteinCount <- table(factor(protein_classes))[[i]] + (n_proteins - n_annotated)
-    }
-
-    else {
-    kog_count_df[kog_count_df$kogClass == cog_classes_df[cog_classes_df$code == i,]$class,]$proteinCount <- table(factor(protein_classes))[[i]]
-    }
+  for (i in cog_classes_df$code){
+    kog_count_df[kog_count_df$kogClass == cog_classes_df[cog_classes_df$code == i,]$class,]$proteinCount <- length(gregexpr(i, protein_classes)[[1]][gregexpr(i, protein_classes)[[1]] > 0])
   }
 
   kog_count_df[kog_count_df$kogClass == "CELLULAR PROCESSES AND SIGNALING",]$proteinCount <- sum(kog_count_df$proteinCount[2:10])
   kog_count_df[kog_count_df$kogClass =="INFORMATION STORAGE AND PROCESSING",]$proteinCount <- sum(kog_count_df$proteinCount[12:16])
   kog_count_df[kog_count_df$kogClass =="METABOLISM",]$proteinCount <- sum(kog_count_df$proteinCount[18:26])
   kog_count_df[kog_count_df$kogClass =="POORLY CHARACTERIZED",]$proteinCount <- sum(kog_count_df$proteinCount[28:29])
+  kog_count_df[kog_count_df$kogClass =="UNANNOTATED",]$proteinCount <- n_unannotated + (n_proteins - n_annotated)
   kog_count_df[kog_count_df$kogClass =="ANNOTATED",]$proteinCount <- n_proteins - kog_count_df[kog_count_df$kogClass =="UNANNOTATED",]$proteinCount
 
   enrichment_df <- kog_count_df
@@ -1273,7 +1310,238 @@ kog_enrichment_eggnog <- function(kog_model, eggnog_annotation_df, protein_ids, 
   enrichment_df$p.value <- stat_results
   enrichment_df$adj.p.value <- p.adjust(enrichment_df$p.value, method = p.adjust.method)
 
+  enrichment_df$proteinIds <- NA
+  unannotated_protein <- c()
+  annotated_protein <- c()
+
+  for (i in protein_ids){
+    if (!(i %in% eggnog_annotation_df$query)){
+      unannotated_protein <- append(unannotated_protein, i)
+    }
+
+    else if (eggnog_annotation_df[eggnog_annotation_df$query == i,]$COG_category == "-"){
+      unannotated_protein <- append(unannotated_protein, i)
+    }
+
+    else {
+      annotated_protein <- append(annotated_protein, i)
+    }
+  }
+
+  enrichment_df[enrichment_df$kogClass == "ANNOTATED",]$proteinIds <- paste(annotated_protein, collapse = ", ")
+  enrichment_df[enrichment_df$kogClass == "UNANNOTATED",]$proteinIds <- paste(unannotated_protein, collapse = ", ")
+
+  for (i in cog_classes_df$code){
+
+    i_proteins <- c()
+
+    for (j in eggnog_annotation_df[eggnog_annotation_df$query %in% protein_ids,]$query){
+      if (grepl(i, eggnog_annotation_df[eggnog_annotation_df$query == j,]$COG_category)){
+        i_proteins <- append(i_proteins, j)
+      }
+    }
+
+    if (length(i_proteins) > 0){
+    enrichment_df[enrichment_df$kogClass == cog_classes_df[cog_classes_df$code == i,]$class,]$proteinIds <- paste(i_proteins, collapse = ", ")
+    }
+  }
+
   return(enrichment_df)
 }
 
+
+#################################################
+# Create GO Model from eggNOG-mapper Annotation #
+#################################################
+
+#' Create GO Model from eggNOG-mapper Annotation
+#'
+#' @description
+#' This function generates a background frequency model for GO term enrichment analysis based on eggNOG-mapper annotation.
+#'
+#' @param eggnog_annotation A dataframe with eggNOG-mapper annotation information
+#'
+#' @return A list of dataframes with GO terms background frequencies by gotermType (biological_processes, cellular_component, molecular_function)
+#' @export
+#'
+#' @examples
+#' go_model_df <- create_go_model_eggnog(eggnog_annotation_df)
+#' go_model_biological_processes_df <- go_model_df$biological_processes
+#' go_model_cellular_component_df <- go_model_df$cellular_component
+#' go_model_molecular_function_df <- go_model_df$molecular_function
+
+create_go_model_eggnog <- function(eggnog_annotation){
+
+  go_terms_df <- go_terms_df
+
+  go_names <- c()
+  go_term_types <- c()
+  go_acc <- unique(names(table(factor(unlist(strsplit(eggnog_annotation$GOs, ","))))))
+
+  n_proteins <- length(eggnog_annotation$query)
+  unannotated <- table(factor(unlist(strsplit(eggnog_annotation$GOs, ","))))[["-"]]
+  annotated <- n_proteins - table(factor(unlist(strsplit(eggnog_annotation$GOs, ","))))[["-"]]
+
+  go_acc_og <- unlist(strsplit(eggnog_annotation[eggnog_annotation$GOs != "-",]$GOs, ","))
+
+  for (i in 1:length(go_acc_og)){
+    if (!(go_acc_og[i] %in% go_terms_df$goAcc)){
+      go_acc_og[i] <- go_terms_df[grepl(go_acc_og[i], go_terms_df$alt_id, fixed = TRUE),]$goAcc
+    }
+  }
+
+  go_model <- as.data.frame(table(go_acc_og))
+  colnames(go_model) <- c("goAcc", "goModel")
+  go_model$goName <- NA
+  go_model$gotermType <- NA
+
+  for (i in go_model$goAcc){
+    if (i %in% go_terms_df$goAcc){
+    go_model[go_model$goAcc == i,]$goName <- go_terms_df[go_terms_df$goAcc == i,]$goName
+    go_model[go_model$goAcc == i,]$gotermType <- go_terms_df[go_terms_df$goAcc == i,]$gotermType
+    }
+  }
+
+  go_model <- go_model[, c("goName", "gotermType", "goAcc", "goModel")]
+
+  # Need a number of proteins with an annotation for each go term type (?)
+
+  annotated_df <- c("ANNOTATED",	NA,	NA, annotated)
+  unannotated_df <- c("UNANNOTATED",	NA,	NA, unannotated)
+
+  biological_process <- go_model[go_model$gotermType == "biological_process",]
+  biological_process <- rbind(biological_process, annotated_df)
+  biological_process <- rbind(biological_process, unannotated_df)
+  rownames(biological_process) <- NULL
+
+  cellular_component <- go_model[go_model$gotermType == "cellular_component",]
+  cellular_component <- rbind(cellular_component, annotated_df)
+  cellular_component <- rbind(cellular_component, unannotated_df)
+  rownames(cellular_component) <- NULL
+
+  molecular_function <- go_model[go_model$gotermType == "molecular_function",]
+  molecular_function <- rbind(molecular_function, annotated_df)
+  molecular_function <- rbind(molecular_function, unannotated_df)
+  rownames(molecular_function) <- NULL
+
+  go_model <- list(biological_process = biological_process, cellular_component = cellular_component, molecular_function = molecular_function)
+
+  return(go_model)
+}
+
+############################################################
+# Create GO enrichment table from eggNOG-mapper Annotation #
+############################################################
+
+#' Create GO Enrichment Dataframe from eggNOG-mapper Annotation
+#'
+#' @description
+#' This function generates a dataframe containing background/sample frequencies and enrichment statistics per GO term from eggNOG-mapper Annotation.
+#'
+#' @param go_model 	A list of dataframes with GO terms background frequencies per GO term type
+#' @param eggnog_annotation A dataframe with eggNOG-mapper annotation information
+#' @param protein_ids A vector of protein IDs
+#' @param test A statistical method for testing the null of independence of rows and columns in a contingency table (default = "fisher")
+#' @param p.adjust.method A statistical method to adjust p-values for multiple comparisons (default = "BH")
+#'
+#' @return A list of dataframes with GO terms enrichment statistics per GO term type (biological_processes, cellular_component, molecular_function)
+#'
+#' @examples
+#' go_enrichment_df <- go_enrichment(go_model_df, eggnog_annotation, protein_ids)
+#' go_enrichment_df <- go_enrichment(go_model_df, eggnog_annotation, protein_ids, test = "fisher", p.adjust.method = "BH")
+#' go_enrichment_df <- go_enrichment(go_model_df, eggnog_annotation, protein_ids, test = "chisq", p.adjust.method = "bonferroni")
+#' go_enrichment_df <- go_enrichment(go_model_df, eggnog_annotation, protein_ids, test = "chisq", p.adjust.method = "none")
+#' go_enrichment_biological_processes_df <- go_enrichment_df$biological_processes
+#' go_enrichment_cellular_component_df <- go_enrichment_df$cellular_component
+#' go_enrichment_molecular_function_df <- go_enrichment_df$molecular_function
+#' @export
+
+go_enrichment_eggnog <- function(go_model, eggnog_annotation, protein_ids, test= "fisher", p.adjust.method= "BH"){
+
+  go_count_df <- go_model
+  go_groups <- c("biological_process", "cellular_component", "molecular_function")
+  protein_ids <- unique(protein_ids)
+
+  subset_annotation <- eggnog_annotation[eggnog_annotation$query %in% protein_ids,]
+
+  n_proteins <- length(protein_ids)
+  unannotated <- table(factor(unlist(strsplit(subset_annotation$GOs, ","))))[["-"]]
+  annotated <- n_proteins - unannotated
+
+  go_acc_og <- unlist(strsplit(subset_annotation[subset_annotation$GOs != "-",]$GOs, ","))
+
+  for (i in 1:length(go_acc_og)){
+    if (!(go_acc_og[i] %in% go_terms_df$goAcc)){
+      go_acc_og[i] <- go_terms_df[grepl(go_acc_og[i], go_terms_df$alt_id, fixed = TRUE),]$goAcc
+    }
+  }
+
+  for (group in go_groups){
+
+    go_count_df[[group]]$proteinCount <- 0
+
+    go_count_df[[group]][go_count_df[[group]]$goName == "ANNOTATED",]$proteinCount <- annotated
+    go_count_df[[group]][go_count_df[[group]]$goName == "UNANNOTATED",]$proteinCount <- unannotated
+
+    annotated_df <- go_count_df[[group]][go_count_df[[group]]$goName == "ANNOTATED",]
+    unannotated_df <- go_count_df[[group]][go_count_df[[group]]$goName == "UNANNOTATED",]
+
+    go_count_df[[group]] <- go_count_df[[group]][!is.na(go_count_df[[group]]$goAcc),]
+
+    for (i in 1:length(go_acc_og)){
+
+      if (go_acc_og[i] %in% go_count_df[[group]]$goAcc){
+        go_count_df[[group]][go_count_df[[group]]$goAcc == go_acc_og[i],]$proteinCount <- go_count_df[[group]][go_count_df[[group]]$goAcc == go_acc_og[i],]$proteinCount + 1
+      }
+    }
+
+    go_count_df[[group]] <- rbind(go_count_df[[group]], annotated_df)
+    go_count_df[[group]] <- rbind(go_count_df[[group]], unannotated_df)
+
+  }
+
+  enrichment_df <- go_count_df
+
+  for (group in go_groups){
+    annotated_model <- as.numeric(enrichment_df[[group]][enrichment_df[[group]]$goName == "ANNOTATED",]$goModel)
+    annotated_proteins <- as.numeric(enrichment_df[[group]][enrichment_df[[group]]$goName == "ANNOTATED",]$proteinCount)
+
+    enrichment_df[[group]]$enrichment <- (as.numeric(enrichment_df[[group]]$proteinCount)/annotated_proteins)/(as.numeric(enrichment_df[[group]]$goModel)/annotated_model)
+
+    enrichment_df[[group]]$enrichment[is.infinite(enrichment_df[[group]]$enrichment)] <- NaN
+    enrichment_df[[group]]$enrichment[enrichment_df[[group]]$goName == "UNANNOTATED"] <- NaN
+    enrichment_df[[group]]$enrichment[enrichment_df[[group]]$goName == "ANNOTATED"] <- NaN
+
+    stat_results <- c()
+
+    for (i in enrichment_df[[group]]$goName){
+      if (is.nan(enrichment_df[[group]][enrichment_df[[group]]$goName == i,]$enrichment)){
+        stat_results <- append(stat_results, NaN)
+        next
+      }
+
+      contingency_table <- matrix(c(as.numeric(enrichment_df[[group]][enrichment_df[[group]]$goName == i,]$proteinCount),
+                                    annotated_proteins - as.numeric(enrichment_df[[group]][enrichment_df[[group]]$goName == i,]$proteinCount),
+                                    as.numeric(enrichment_df[[group]][enrichment_df[[group]]$goName == i,]$goModel),
+                                    annotated_model - as.numeric(enrichment_df[[group]][enrichment_df[[group]]$goName == i,]$goModel)),2,2)
+      if (test == "fisher"){
+        stat_results <- append(stat_results, fisher.test(contingency_table, alternative='greater')$p.value)
+      }
+
+      else if (test == "chisq"){
+        stat_results <- append(stat_results, chisq.test(contingency_table)$p.value)
+      }
+    }
+
+    enrichment_df[[group]]$p.value <- stat_results
+
+    enrichment_df[[group]] <- enrichment_df[[group]][order(enrichment_df[[group]]$p.value),]
+    row.names(enrichment_df[[group]]) <- NULL
+
+    enrichment_df[[group]]$adj.p.value <- p.adjust(enrichment_df[[group]]$p.value, method = p.adjust.method)
+
+  }
+
+  return(enrichment_df)
+}
 ################################################################################
