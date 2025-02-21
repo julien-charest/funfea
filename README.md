@@ -50,7 +50,7 @@ kog_enrichment_df <- kog_enrichment(t.reesei_qm6a$kog, protein_ids, test = "fish
 generate_kog_plot(kog_enrichment_df, plot_type = "barplot")
 generate_kog_plot(kog_enrichment_df, plot_type = "lollipop")
 ```
-![KOG Plot - Barplot (A), Lollipop (B)](figures/KOG.svg "KOG Plot")
+![KOG Plot - Barplot (A), Lollipop (B)](figures/KOG.jpeg "KOG Plot")
 <br>
 
 ##### GO Enrichment Analysis
@@ -63,7 +63,7 @@ generate_go_plot(go_enrichment_df, gotermType = "biological_process", n = 10, pl
 generate_go_plot(go_enrichment_df, gotermType = "molecular_function", n = 10, plot_type = "lollipop")
 generate_go_plot(go_enrichment_df, gotermType = "cellular_component", n = 10, plot_type = "lollipop")
 ```
-![GO Plots - Biological Process (A), Molecular Function (B), Cellular Component (C)](figures/GO.svg "GO Plots")
+![GO Plots - Biological Process (A), Molecular Function (B), Cellular Component (C)](figures/GO.jpeg "GO Plots")
 <br>
 
 ##### KEGG Enrichment Analysis
@@ -77,7 +77,7 @@ generate_kegg_plot(kegg_enrichment_df, model = "pathway_class", n = 10, plot_typ
 generate_kegg_plot(kegg_enrichment_df, model = "pathway_name", n = 10, plot_type = "lollipop")
 generate_kegg_plot(kegg_enrichment_df, model = "definition", n = 10, plot_type = "lollipop")
 ```
-![KEGG Plots - Pathway Type (A), Pathway Class (B), Pathway Name (C), Enzyme Definition (D)](figures/KEGG.svg "GO Plots")
+![KEGG Plots - Pathway Type (A), Pathway Class (B), Pathway Name (C), Enzyme Definition (D)](figures/KEGG.jpeg "GO Plots")
 <br>
 
 #### Utility Functions
