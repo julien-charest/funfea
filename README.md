@@ -91,7 +91,7 @@ protein_ids <- gene2protein_id(gene_ids, transcripts2proteins_df)
 ```
 
 #### Creating Functional Models from Annotation Files
-If precomputed models are not available for your organism, FunFEA allows users to generate COG/KOG, GO, and KEGG pathway models directly from functional annotations. This is particularly useful when working with novel species or custom annotations. Functional models can be also be created using annotation data from *eggNOG-mapper*, a widely used tool for functional annotation of protein sequences. Example annotations can be found [here](https://github.com/julien-charest/funfea/tree/main/examples).
+If precomputed models are not available for your organism, FunFEA allows users to generate COG/KOG, GO, and KEGG pathway models directly from functional annotations. This is particularly useful when working with novel species or custom annotations. Functional models can be also be created using annotation data from *eggNOG-mapper*, a widely used tool for functional annotation of protein sequences. Example annotations for Trichoderma Reesei (QM6a) can be found [here](https://github.com/julien-charest/funfea/tree/main/examples) (JGI).
 
 ##### Generating Models from Public Annotations
 ```r
