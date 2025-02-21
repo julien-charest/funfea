@@ -3,12 +3,11 @@
 ### Overview  
 *FunFEA* is an R package for functional enrichment analysis of fungal genomes. It allows users to build enrichment-ready models from COG/KOG, GO, and KEGG pathway annotations and perform enrichment analysis using transcriptomics or proteomics data. 
 
-Key features:\
-- Supports COG/KOG, GO, and KEGG pathway enrichment analysis from publicly available or *eggNOG-mapper* annotations.\
-- Includes pre-generated models for commonly studied fungal species.\
-- Provides *ggplot2*-based visualization tools for enrichment results.\
-- Compatible with *patchwork* for figure panel generation.\
-<br>
+Key features:  
+- Supports COG/KOG, GO, and KEGG pathway enrichment analysis from publicly available or *eggNOG-mapper* annotations.  
+- Includes pre-generated models for commonly studied fungal species.  
+- Provides *ggplot2*-based visualization tools for enrichment results.  
+- Compatible with *patchwork* for figure panel generation.  
 
 ### Installation  
 
@@ -21,7 +20,6 @@ install.packages(c("ggplot2", "tidyr", "igraph", "dplyr"), dependencies = TRUE)
 # Install FunFEA from latest build
 install.packages("/path/to/funfea_1.1.8.tar.gz", repos = NULL, type = "source")
 ```
-<br>
 
 ### Using FunFEA
 #### Loading Precomputed Models
@@ -34,12 +32,9 @@ library(funfea)
 # Fetch precomputed models for a given organism (e.g. Trichoderma reesei (QM6a))
 t.reesei_qm6a <- fetch_models("Trichoderma reesei (QM6a)")
 ```
-<br>
 
 #### Computing Enrichments
 Once a precomputed model has been loaded, enrichment analysis can be performed using the *kog_enrichment()*, *go_enrichment()*, or *kegg_enrichment()* functions, depending on the functional annotation type, and a *protein_ids* vector, corresponding to differentially abundant proteins from an RNA-seq or proteomics experiment.
-<br>
-<br>  
 
 ##### KOG Enrichment Analysis
 ```r
@@ -51,7 +46,6 @@ generate_kog_plot(kog_enrichment_df, plot_type = "barplot")
 generate_kog_plot(kog_enrichment_df, plot_type = "lollipop")
 ```
 ![KOG Plot - Barplot (A), Lollipop (B)](figures/KOG.jpeg "KOG Plot")
-<br>
 
 ##### GO Enrichment Analysis
 ```r
@@ -64,7 +58,6 @@ generate_go_plot(go_enrichment_df, gotermType = "molecular_function", n = 10, pl
 generate_go_plot(go_enrichment_df, gotermType = "cellular_component", n = 10, plot_type = "lollipop")
 ```
 ![GO Plots - Biological Process (A), Molecular Function (B), Cellular Component (C)](figures/GO.jpeg "GO Plots")
-<br>
 
 ##### KEGG Enrichment Analysis
 ```r
@@ -78,7 +71,6 @@ generate_kegg_plot(kegg_enrichment_df, model = "pathway_name", n = 10, plot_type
 generate_kegg_plot(kegg_enrichment_df, model = "definition", n = 10, plot_type = "lollipop")
 ```
 ![KEGG Plots - Pathway Type (A), Pathway Class (B), Pathway Name (C), Enzyme Definition (D)](figures/KEGG.jpeg "GO Plots")
-<br>
 
 #### Utility Functions
 FunFEA includes several utility functions to assist in handling gene, transcript, and protein ID conversions. These functions allow users to efficiently process annotation files and map identifiers for downstream enrichment analysis.
@@ -95,12 +87,9 @@ protein_ids <- transcript2protein_id(transcript_ids, transcript2protein_id_df)
 # Converting gene names to protein IDs
 protein_ids <- gene2protein_id(gene_ids, transcripts2proteins_df)
 ```
-<br>
 
 #### Creating Functional Models from Annotation Files
 If precomputed models are not available for your organism, FunFEA allows users to generate COG/KOG, GO, and KEGG pathway models directly from functional annotations. This is particularly useful when working with novel species or custom annotations. Functional models can be also be created using annotation data from *eggNOG-mapper*, a widely used tool for functional annotation of protein sequences.
-<br>
-<br>
 
 ##### Generating Models from Public Annotations
 ```r
@@ -120,7 +109,6 @@ kegg_model_df <- create_kegg_model(kegg_annotation_df)
 ec_annotation_df  <- load_ec_annotation(path/to/EC/annotation)
 kegg_model_df <- create_kegg_model_from_ec(ec_annotation_df)
 ```
-<br>
 
 ##### Generating Models from *eggNOG-mapper* Annotation
 ```r
@@ -136,7 +124,6 @@ go_model_df <- create_go_model_eggnog(eggnog_annotation_df)
 # Generate KEGG pathway models (from KEGG annotation)
 kegg_model_df <- create_kegg_model_eggnog(eggnog_annotation_df)
 ```
-<br>
 
 ### **Available Precomputed Models**  
 
