@@ -3,6 +3,8 @@
 ### Overview  
 *FunFEA* is an R package for functional enrichment analysis of fungal genomes. It allows users to build enrichment-ready models from COG/KOG, GO, and KEGG pathway annotations and perform enrichment analysis using transcriptomics or proteomics data. 
 
+Authors: Julien Charest & Paul Loebenstein
+
 Key features:  
 - Supports COG/KOG, GO, and KEGG pathway enrichment analysis from publicly available or *eggNOG-mapper* annotations.  
 - Includes pre-generated models for commonly studied fungal species.  
