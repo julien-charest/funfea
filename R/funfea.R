@@ -299,6 +299,8 @@ load_kog_annotation <- function(path){
 
 create_kog_model <- function(kog_annotation){
 
+  data(cog_classes, envir = environment())
+
   groups <- c("CELLULAR PROCESSES AND SIGNALING",
               "Cell wall/membrane/envelope biogenesis",
               "Cell motility",
@@ -590,6 +592,7 @@ load_go_annotation <- function(path){
 
 create_go_model <- function(go_annotation){
 
+  data(go_terms, envir = environment())
   go_model <- go_terms_df
   go_model <- go_model[, c("goAcc", "alt_id", "is_a", "goName", "gotermType")]
   go_model$goModel <- 0
@@ -1023,6 +1026,8 @@ load_eggnog_annotation <- function(path){
 
 create_kog_model_eggnog <- function(eggnog_annotation){
 
+  data(cog_classes, envir = environment())
+
   kog_annotation <- eggnog_annotation
   kog_annotation <- kog_annotation[kog_annotation$COG_category != "-",c("query", "COG_category")]
   kog_annotation <- tidyr::separate_rows(kog_annotation, COG_category, sep = "")
@@ -1130,6 +1135,8 @@ load_kegg_annotation <- function(path, transcript2protein_id_df){
 create_kegg_model <- function(kegg_annotation, filter = "All"){
 
   protein_ids <- sort(unique(kegg_annotation$proteinId))
+  data(kegg_pathways, envir = environment())
+  data(kegg_pathways_filter, envir = environment())
   pathways_df <- kegg_pathways
 
   pathways_df$keggModel <- 0
@@ -1601,15 +1608,14 @@ generate_kegg_plot <- function(enrichment_df, model = "pathway_class", n = 10, s
 
 fetch_models <- function(strain){
 
-  available_models <- available_models
+  data(available_models, envir = environment())
 
   if (strain %in% available_models$strain){
     file_name <- available_models[available_models$strain == strain,]$file
-    file_path <- file.path("data", file_name)
-    file <- load(file_path)
-    data <- get(file)
-    print(data["info"])
-    return(data)
+    model_env <- new.env()
+    data(list = file_name, envir = model_env)
+    model_data <- get(file_name, envir = model_env)
+    return(model_data)
   }
 
   else {
@@ -1703,6 +1709,8 @@ create_kegg_model_from_ec <- function(ec_annotation_df, filter = "All"){
   kegg_annotation <- ec_annotation_df[, c("proteinId", "ecNum")]
   kegg_annotation <- unique(kegg_annotation)
   kegg_annotation$KEGG_ko <- NA
+
+  data(kegg_pathways, envir = environment())
 
   for (i in 1:nrow(kegg_annotation)){
     ec_ko <- kegg_pathways[grepl(kegg_annotation[i,]$ecNum, kegg_pathways$ecNum),]$KEGG_ko

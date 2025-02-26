@@ -96,26 +96,26 @@ If precomputed models are not available for your organism, FunFEA allows users t
 ##### Generating Models from Public Annotations
 ```r
 # Generate KOG model
-kog_annotation_df <- load_kog_annotation(path/to/KOG/annotation)
+kog_annotation_df <- load_kog_annotation("path/to/KOG/annotation")
 kog_model_df <- create_kog_model(kog_annotation_df)
 
 # Generate GO models
-go_annotation_df <- load_go_annotation(path/to/GO/annotation)
+go_annotation_df <- load_go_annotation("path/to/GO/annotation")
 go_model_df <- create_go_model(go_annotation_df)
 
-# Generate KEGG pathway models (from KEGG annotation)
-kegg_annotation_df  <- load_kegg_annotation(path/to/KEGG/annotation)
+# Generate KEGG pathway models (from KEGG annotation) [Requires transcript2protein_id_df]
+kegg_annotation_df  <- load_kegg_annotation("path/to/KEGG/annotation", transcript2protein_id_df)
 kegg_model_df <- create_kegg_model(kegg_annotation_df)
 
 # Generate KEGG pathway models (from EC annotation)
-ec_annotation_df  <- load_ec_annotation(path/to/EC/annotation)
+ec_annotation_df  <- load_ec_annotation("path/to/EC/annotation")
 kegg_model_df <- create_kegg_model_from_ec(ec_annotation_df)
 ```
 
 ##### Generating Models from *eggNOG-mapper* Annotation
 ```r
 # Load eggnog-mapper annotation
-eggnog_annotation_df <- load_eggnog_annotation(path/to/eggnog/annotation)
+eggnog_annotation_df <- load_eggnog_annotation("path/to/eggnog/annotation")
 
 # Generate KOG model
 kog_model_df <- create_kog_model_eggnog(eggnog_annotation_df)
