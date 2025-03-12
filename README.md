@@ -44,7 +44,7 @@ Once a precomputed model has been loaded, enrichment analysis can be performed u
 kog_enrichment_df <- kog_enrichment(t.reesei_qm6a$kog, protein_ids, test = "fisher", p.adjust.method = "BH")
 
 # Generate KOG plot
-generate_kog_plot(kog_enrichment_df, plot_type = "barplot")
+generate_kog_plot(kog_enrichment_df, plot_type = "bar")
 generate_kog_plot(kog_enrichment_df, plot_type = "lollipop")
 ```
 ![KOG Plot - Barplot (A), Lollipop (B)](figures/KOG.jpeg "KOG Plot")
