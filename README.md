@@ -13,7 +13,7 @@ Key features:
 
 ### Installation  
 
-You can install the [latest development version](https://github.com/julien-charest/funfea/releases/tag/v1.2.0) from GitHub:  
+You can install the [latest release](https://github.com/julien-charest/funfea/releases/tag/v1.2.0) from GitHub:  
 
 ```r
 # Install FunFEA dependencies if not already installed
