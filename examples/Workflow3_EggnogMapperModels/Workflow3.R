@@ -3,6 +3,8 @@
 # Building Models From eggnog-mapper Annotations #
 ##################################################
 
+library("funfea")
+
 ##############################################################
 # Building Transcript IDs To Protein ID Conversion Dataframe #
 ##############################################################
