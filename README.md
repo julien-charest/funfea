@@ -199,7 +199,13 @@ The following fungal species have precomputed COG/KOG, GO, and KEGG pathway mode
 | *Trichoderma reesei*             | RUT C-30         |
 | *Trichoderma virens*             | Gv29-8           |
 
-To load a precomputed model, use:  
+To list available precomputed models, use:  
+
+```r
+available_models$strain
+```
+
+To load precomputed models, use:  
 
 ```r
 models <- fetch_models("Species (Strain)")
