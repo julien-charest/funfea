@@ -3,6 +3,8 @@
 # Working with Precomputed Models #
 ###################################
 
+library("funfea")
+
 ##################
 # Preparing data #
 ##################
