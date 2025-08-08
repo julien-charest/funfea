@@ -27,9 +27,10 @@
 
 load_gtf_annotation <- function(path){
 
-  gtf_data <- read.delim(path, header = FALSE, sep = "\t")
+  all_lines <- readLines(path)
+  gtf_lines <- all_lines[!grepl("^#", all_lines)]
+  gtf_data <- read.delim(textConnection(gtf_lines), header = FALSE, sep = "\t", quote = "")
   colnames(gtf_data) <- c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute")
-  gtf_data <- gtf_data[!grepl("^#", gtf_data$seqname),]
   rownames(gtf_data) <- NULL
 
   return(gtf_data)
@@ -52,131 +53,273 @@ load_gtf_annotation <- function(path){
 
 create_transcript2protein_id_df <- function(gtf_df) {
 
-  gtf_attributes <- gtf_df[gtf_df$feature == "CDS" | gtf_df$feature == "gene", ]
+  print("Parsing Gene Annotation for Gene IDs, Gene Names, Transcript IDs, Protein IDs & Products...")
 
-  n <- nrow(gtf_attributes)
-  gene_ids <- character(n)
-  gene_names <- character(n)
-  transcript_ids <- character(n)
-  protein_ids <- character(n)
+  gene_ids <- c()
+  gene_names <- c()
+  transcript_ids <- c()
+  protein_ids <- c()
+  products <- c()
 
-  print("Parsing Gene Annotation for Gene IDs, Gene Names, Transcript IDs & Protein IDs...")
-  total <- nrow(gtf_attributes[gtf_df$feature == "CDS" | gtf_df$feature == "exon", ])
-  pb <- txtProgressBar(min = 0, max = total, style = 3)
-  progress <- 0
+  if ("gene" %in% gtf_df$feature){
 
-  for (i in 1:n) {
-    setTxtProgressBar(pb, progress)
+    cds_df <- gtf_df[gtf_df$feature == "CDS",]
+    total <- nrow(cds_df)
+    pb <- txtProgressBar(min = 0, max = total, style = 3)
+    progress <- 0
 
-    attribute_i <- trimws(strsplit(gtf_attributes[i, ]$attribute, ";")[[1]])
+    for (i in 1:nrow(cds_df)){
 
-    gene_id <- gene_name <- transcript_id <- protein_id <- NA
+      setTxtProgressBar(pb, progress)
+      attribute_i <- trimws(strsplit(cds_df[i, ]$attribute, ";")[[1]])
 
-    genefound <- FALSE
+      gene_id <- NA
+      gene_name <- NA
+      transcript_id <- NA
+      protein_id <- NA
+      product <- NA
 
-    for (j in attribute_i){
-      if (grepl("^gene_id ", j)){
-        gene_id <- substr(j,9,nchar(j))
+      for (j in attribute_i){
+
+        # Gene ID
+        if (grepl("^locus_tag=", j)){
+          gene_id <- substr(j,11,nchar(j))
+        }
+        # Gene Name
+        if (grepl("^gene=", j)){
+          gene_name <- substr(j,6,nchar(j))
+        }
+        # Transcript ID
+        if (grepl("^Parent=", j)){
+          transcript_id <- substr(j,8,nchar(j))
+          transcriptidfound <- TRUE
+        }
+        # Protein ID
+        if (grepl("^protein_id=", j)){
+          protein_id <- substr(j,12,nchar(j))
+        }
+        # Product
+        if (grepl("^product=", j)){
+          product <- substr(j,9,nchar(j))
+        }
       }
-      else if (grepl("^name ", j)){
-        gene_id <- substr(j,6,nchar(j))
-      }
-      else if (grepl("^Name=", j)){
-        gene_id <- substr(j,6,nchar(j))
-      }
-      if (grepl('^gene ', j) && !genefound){
-        gene_name <- substr(j,6,nchar(j))
-        genefound <- TRUE
-      }
-      if (grepl("^transcript_id ", j)){
-        transcript_id <- substr(j,15,nchar(j))
-      }
-      else if (grepl("^transcriptId ", j)){
-        transcript_id <- substr(j,14,nchar(j))
-      }
-      else if (grepl("^transcriptId=", j)){
-        transcript_id <- substr(j,14,nchar(j))
-      }
-      if (grepl("^protein_id ", j)){
-        protein_id <- substr(j,12,nchar(j))
-      }
-      else if (grepl("^proteinId ", j)){
-        protein_id <- substr(j,11,nchar(j))
-      }
-      else if (grepl("^proteinId=", j)){
-        protein_id <- substr(j,11,nchar(j))
-      }
+
+      gene_ids <- c(gene_ids, gene_id)
+      gene_names <- c(gene_names, gene_name)
+      transcript_ids <- c(transcript_ids, transcript_id)
+      protein_ids <- c(protein_ids, protein_id)
+      products <- c(products, product)
+
+      progress <- progress + 1
+
     }
 
-    progress <- progress + 1
+    close(pb)
 
-    gene_ids[i] <- gene_id
-    gene_names[i] <- gene_name
-    transcript_ids[i] <- transcript_id
-    protein_ids[i] <- protein_id
+    if (all(is.na(protein_ids)) | all(is.na(transcript_ids))){
+
+      print("Parsing for Transcript IDs...")
+
+      gene_ids <- c()
+      gene_names <- c()
+      transcript_ids <- c()
+      protein_ids <- c()
+      products <- c()
+
+      mrna_df <- gtf_df[gtf_df$feature == "mRNA",]
+      total <- nrow(mrna_df)
+      pb <- txtProgressBar(min = 0, max = total, style = 3)
+      progress <- 0
+
+      for (i in 1:nrow(mrna_df)){
+
+        setTxtProgressBar(pb, progress)
+        attribute_i <- trimws(strsplit(mrna_df[i, ]$attribute, ";")[[1]])
+
+        gene_id <- NA
+        gene_name <- NA
+        transcript_id <- NA
+        protein_id <- NA
+        product <- NA
+
+        for (j in attribute_i){
+
+          # Gene ID
+          if (grepl("^Parent=", j)){
+            gene_id <- substr(j,8,nchar(j))
+          }
+          # Gene Name
+          if (grepl("^gene=", j)){
+            gene_name <- substr(j,6,nchar(j))
+          }
+          # Transcript ID
+          if (grepl("^ID=", j)){
+            transcript_id <- substr(j,4,nchar(j))
+            transcriptidfound <- TRUE
+          }
+          # Protein ID
+          if (grepl("^protein_id=", j)){
+            protein_id <- substr(j,12,nchar(j))
+          }
+          else if (grepl("^ID=", j)){
+            protein_id <- substr(j,4,nchar(j))
+          }
+          # Product
+          if (grepl("^product=", j)){
+            product <- substr(j,9,nchar(j))
+          }
+        }
+
+        gene_ids <- c(gene_ids, gene_id)
+        gene_names <- c(gene_names, gene_name)
+        transcript_ids <- c(transcript_ids, transcript_id)
+        protein_ids <- c(protein_ids, protein_id)
+        products <- c(products, product)
+
+        progress <- progress + 1
+
+      }
+
+      close(pb)
+
+    }
+
+    transcript2protein_id_df <- data.frame(gene_id = gene_ids,
+                                           gene_name = gene_names,
+                                           transcript_id = transcript_ids,
+                                           protein_id = protein_ids,
+                                           product = products,
+                                           stringsAsFactors = FALSE)
+
+    transcript2protein_id_df <- unique(transcript2protein_id_df)
+    rownames(transcript2protein_id_df) <- NULL
+    close(pb)
+
+    if (all(is.na(transcript2protein_id_df$gene_name))){
+
+      print("Parsing for Gene Names...")
+
+      gene_names <- c()
+      gene_df <- gtf_df[gtf_df$feature == "gene",]
+      total <- nrow(gene_df)
+      pb <- txtProgressBar(min = 0, max = total, style = 3)
+      progress <- 0
+
+      for (k in 1:nrow(transcript2protein_id_df)){
+
+        setTxtProgressBar(pb, progress)
+        gene_name <- NA
+        attribute_k <- trimws(strsplit(gene_df[grepl(transcript2protein_id_df[k,]$gene_id, gene_df$attribute), ]$attribute, ";")[[1]])
+
+        for (j in attribute_k){
+          # Gene Name
+          if (grepl("^Name=", j)){
+            gene_name <- substr(j,6,nchar(j))
+          }
+        }
+
+        gene_names <- c(gene_names, gene_name)
+        progress <- progress + 1
+
+      }
+
+      transcript2protein_id_df$gene_name <- gene_names
+      close(pb)
+
+    }
+
   }
 
-  transcript2protein_id_df <- data.frame(gene_ids, gene_names, transcript_ids, protein_ids, stringsAsFactors = FALSE)
-  transcript2protein_id_df <- unique(transcript2protein_id_df)
+  else {
 
-  gtf_attributes <- gtf_df[gtf_df$feature == "exon", ]
+    cds_df <- gtf_df[gtf_df$feature == "CDS",]
+    exon_df <- gtf_df[gtf_df$feature == "exon",]
+    total <- nrow(cds_df) + nrow(exon_df)
+    pb <- txtProgressBar(min = 0, max = total, style = 3)
+    progress <- 0
 
-  n <- nrow(gtf_attributes)
+    gene_ids <- c()
+    gene_names <- c()
+    transcript_ids <- c()
+    protein_ids <- c()
+    products <- c()
 
-  for (i in 1:n) {
+    for (i in 1:nrow(cds_df)){
+
+      setTxtProgressBar(pb, progress)
+      attribute_i <- trimws(strsplit(cds_df[i, ]$attribute, ";")[[1]])
+      protein_id <- NA
+      gene_id <- NA
+
+      for (j in attribute_i){
+
+        # Protein ID
+        if (grepl("^protein_id ", j)){
+          protein_id <- substr(j,12,nchar(j))
+        }
+        else if (grepl("^proteinId ", j)){
+          protein_id <- substr(j,11,nchar(j))
+        }
+        else if (grepl("^proteinId=", j)){
+          protein_id <- substr(j,11,nchar(j))
+        }
+        # Gene Name
+        if (grepl("^name ", j)){
+          gene_id <- gsub('"', '', substr(j,6,nchar(j)))
+        }
+      }
+
+      protein_ids <- c(protein_ids, protein_id)
+      gene_ids <- c(gene_ids, gene_id)
+      progress <- progress + 1
+
+    }
+
+    transcript2protein_id_df <- data.frame(gene_id = gene_ids,
+                                           gene_name = rep(NA, length(protein_ids)),
+                                           transcript_id = rep(NA, length(protein_ids)),
+                                           protein_id = protein_ids,
+                                           product = rep(NA, length(protein_ids)),
+                                           stringsAsFactors = FALSE)
+
+    transcript2protein_id_df <- unique(transcript2protein_id_df)
+    rownames(transcript2protein_id_df) <- NULL
+
+    for (k in 1:nrow(transcript2protein_id_df)){
+
+      setTxtProgressBar(pb, progress)
+      gene_id <- transcript2protein_id_df[k,]$gene_id
+      gene_name <- NA
+      transcript_id <- NA
+      product <- NA
+
+      attribute_k <- trimws(strsplit(exon_df[grepl(gene_id, exon_df$attribute), ]$attribute, ";")[[1]])
+
+      for (j in attribute_k){
+
+        # Transcript ID
+        if (grepl("^transcriptId ", j)){
+          transcript_id <- substr(j,14,nchar(j))
+          break
+        }
+      }
+
+      gene_names <- c(gene_names, gene_name)
+      transcript_ids <- c(transcript_ids, transcript_id)
+      products <- c(products, product)
+      progress <- progress + 1
+
+    }
+
+    progress <- total
     setTxtProgressBar(pb, progress)
+    close(pb)
 
-    attribute_i <- trimws(strsplit(gtf_attributes[i, ]$attribute, ";")[[1]])
+    transcript2protein_id_df$gene_name <- gene_names
+    transcript2protein_id_df$transcript_id <- transcript_ids
+    transcript2protein_id_df$product <- products
 
-    gene_id <- gene_name <- transcript_id <- protein_id <- NA
-
-    genefound <- FALSE
-
-    for (j in attribute_i){
-      if (grepl("^gene_id ", j)){
-        gene_id <- substr(j,9,nchar(j))
-      }
-      else if (grepl("^name ", j)){
-        gene_id <- substr(j,6,nchar(j))
-      }
-      if (grepl('^gene ', j) && !genefound){
-        gene_name <- substr(j,6,nchar(j))
-        genefound <- TRUE
-      }
-      if (grepl("^transcript_id ", j)){
-        transcript_id <- substr(j,15,nchar(j))
-      }
-      else if (grepl("^transcriptId ", j)){
-        transcript_id <- substr(j,14,nchar(j))
-      }
-      if (grepl("^protein_id ", j)){
-        protein_id <- substr(j,12,nchar(j))
-      }
-      else if (grepl("^proteinId ", j)){
-        protein_id <- substr(j,11,nchar(j))
-      }
-    }
-
-    if (!is.na(transcript_id)){
-      transcript2protein_id_df[transcript2protein_id_df$gene_ids == gene_id,]$transcript_ids <- transcript_id
-    }
-    if (!is.na(protein_id)){
-      transcript2protein_id_df[transcript2protein_id_df$gene_ids == gene_id,]$protein_ids <- protein_id
-    }
-    if (!is.na(gene_name)){
-      transcript2protein_id_df[transcript2protein_id_df$gene_ids == gene_id,]$gene_names <- gene_name
-    }
-    progress <- progress + 1
   }
-
-  close(pb)
-
-  transcript2protein_id_df <- transcript2protein_id_df[!is.na(transcript2protein_id_df$gene_ids),]
-  transcript2protein_id_df$gene_ids <- gsub("_mRNA", "", transcript2protein_id_df$gene_ids)
-
-  transcript2protein_id_df <- transcript2protein_id_df[!duplicated(transcript2protein_id_df),]
-  transcript2protein_id_df <- transcript2protein_id_df[!is.na(transcript2protein_id_df$protein_ids),]
-
   return(transcript2protein_id_df)
 }
 

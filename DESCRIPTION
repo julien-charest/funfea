@@ -1,7 +1,7 @@
 Package: funfea
 Type: Package
 Title: FunFEA: an R Package for Fungal Functional Enrichment Analysis
-Version: 1.2.1
+Version: 1.2.2
 Author: Julien Charest, Paul Loebenstein
 Maintainer: Julien Charest <julien.charest@tuwien.ac.at>
 Description: Performs enrichment analysis for functional annotations (KOG, GO, and EC) specifically tailored to fungal species. 
